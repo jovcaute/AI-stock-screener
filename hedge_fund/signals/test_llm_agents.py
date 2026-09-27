@@ -10,7 +10,7 @@ from hedge_fund.llm import PromptCache, extract_json
 from hedge_fund.llm.client import LLMParseError
 from hedge_fund.models import Signal
 from hedge_fund.signals import BuffettAgent
-
+from hedge_fund.signals.buffett_indicator import BuffettIndicatorAgent
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -97,6 +97,29 @@ def test_malformed_json_abstains(tmp_path):
     sig = agent.predict("TEST", "2025-01-15", MockDataClient(metrics=_history()))
     assert sig.value == 0.0
     assert sig.metadata["abstained"] is True
+
+
+def test_buffett_indicator_schema_has_no_reasoning_field(tmp_path):
+    """The gate's prompt must ask for signal+confidence only — its whole cost
+    saving depends on the model never spending output tokens on prose."""
+    agent = BuffettIndicatorAgent(llm=FakeLLM(""), cache=PromptCache(tmp_path / "llm"))
+    prompt = agent.get_system_prompt()
+    assert '"reasoning"' not in prompt
+    assert '"signal"' in prompt and '"confidence"' in prompt
+    assert "Circle of competence" in prompt  # checklist above the schema is untouched
+
+
+def test_buffett_indicator_parses_response_with_no_reasoning_key(tmp_path):
+    """LLMAgent._parse defaults reasoning to "" — confirm the indicator's
+    reasoning-free response actually round-trips through the real parser."""
+    response = json.dumps({"signal": "bullish", "confidence": 72})
+    agent = BuffettIndicatorAgent(llm=FakeLLM(response), cache=PromptCache(tmp_path / "llm"))
+
+    sig = agent.predict("TEST", "2025-01-15", MockDataClient(metrics=_history()))
+
+    assert sig.metadata["abstained"] is False
+    assert sig.metadata["confidence"] == 72
+    assert sig.reasoning == ""
 
 
 def test_llm_error_abstains(tmp_path):
