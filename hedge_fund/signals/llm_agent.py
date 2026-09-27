@@ -108,8 +108,16 @@ class LLMAgent(AlphaModel):
         personas. Override for personas that reason over different data
         (macro, news); when a second snapshot TYPE exists, extract the
         implicit interface (ticker/as_of/content_hash/render) into a
-        Protocol — not before."""
-        return build_snapshot(ticker, date, data_client)
+        Protocol — not before.
+
+        Full periods=20 history: measured (see hedge_fund git history / the
+        session that added gpt-5-mini) that trimming to periods=10 to save
+        tokens on gpt-5.5 flipped real verdicts on a real subset of names —
+        the multi-year trend the persona sees is not decorative. On a cheap
+        model (gpt-5-mini) the extra tokens cost ~13% more per company, which
+        is worth paying to keep that trend evidence intact.
+        """
+        return build_snapshot(ticker, date, data_client, periods=20)
 
     def build_user_prompt(self, snapshot: FundamentalsSnapshot) -> str:
         """Default user prompt: the rendered snapshot. Override to enrich."""

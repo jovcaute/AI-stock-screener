@@ -30,6 +30,11 @@
     "provider": "OpenAI"
   },
   {
+    "display_name": "GPT-5 Mini",
+    "model_name": "gpt-5-mini",
+    "provider": "OpenAI"
+  },
+  {
     "display_name": "Kimi K2.6",
     "model_name": "kimi-k2.6",
     "provider": "Kimi"

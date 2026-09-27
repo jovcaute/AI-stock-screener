@@ -120,20 +120,30 @@ def build_snapshot(
     as_of: str,
     data_client: DataClient,
     periods: int = 20,
+    min_periods: int | None = None,
 ) -> FundamentalsSnapshot:
     """Build the point-in-time snapshot for (ticker, as_of).
 
-    Raises InsufficientData if fewer than MIN_PERIODS filed periods exist.
-    Data-layer failures propagate (fail loud) — a broken snapshot must never
-    silently become a neutral view.
+    Raises InsufficientData if fewer than min_periods (default MIN_PERIODS)
+    filed periods exist. Data-layer failures propagate (fail loud) — a
+    broken snapshot must never silently become a neutral view.
+
+    min_periods=1 is an explicit, opt-in relaxation for providers that only
+    ever return a current snapshot (e.g. YFClient for non-US tickers, which
+    EdgarClient falls back to) — no trend metrics (gross_margin_trend,
+    bvps_cagr) will be available, they render as "-", and a persona reasons
+    off less evidence than the point-in-time US pipeline gives it. Callers
+    that relax this MUST flag the resulting analysis as lower-rigor; this
+    function does not do that labeling itself.
     """
+    threshold = MIN_PERIODS if min_periods is None else min_periods
     metrics = data_client.get_financial_metrics(
         ticker, as_of, period="ttm", limit=periods,
     )
-    if len(metrics) < MIN_PERIODS:
+    if len(metrics) < threshold:
         raise InsufficientData(
             f"{ticker} as of {as_of}: only {len(metrics)} filed periods "
-            f"(need {MIN_PERIODS})"
+            f"(need {threshold})"
         )
 
     # Market cap comes from the most recent FILED metrics row. Deliberately
